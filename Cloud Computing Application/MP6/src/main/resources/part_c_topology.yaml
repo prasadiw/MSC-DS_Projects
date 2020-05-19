@@ -1,0 +1,109 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# topology definition
+# name to be used when submitting
+name: "part-C"
+
+# TODO
+# Task: implement your topology for part c
+
+# topology configuration
+# this will be passed to the submitter as a map of config options
+config:
+    storm.local.hostname: "localhost"
+    topology.max.task.parallelism: 3
+    # set this to true if you want to see more debug log
+    # set it to false before submitting
+    topology.debug: false
+    # Hint: you can set input file path here
+    # make sure it's "/tmp/data.txt" in your final submission
+    file.path: "/tmp/data.txt"
+
+components:
+  - id: "poolConfig"
+    className: "org.apache.storm.redis.common.config.JedisPoolConfig"
+    constructorArgs:
+      - "localhost"
+      - 6379
+      - 2000
+      - "uiuc_cs498_mp6"
+      - 0
+
+  - id: "storeMapper"
+    className: "edu.illinois.storm.WordCountStoreMapper"
+    constructorArgs:
+      - "partCWordCount"
+
+# spout definitions
+spouts:
+  - id: "fileReaderSpout"
+    className: "edu.illinois.storm.FileReaderSpout"
+    parallelism: 1
+    configMethods:
+      - name: "withInputFileProperties"
+        args:
+          - "/tmp/data.txt"
+
+# bolt definitions
+bolts:
+  - id: "splitSentenceBolt"
+    className: "edu.illinois.storm.SplitSentenceBolt"
+    parallelism: 1
+
+  - id: "normalizerBolt"
+    className: "edu.illinois.storm.NormalizerBolt"
+    parallelism: 1
+
+  - id: "wordCountBolt"
+    className: "edu.illinois.storm.WordCountBolt"
+    parallelism: 1
+
+  - id: "redisStoreBolt"
+    className: "org.apache.storm.redis.bolt.RedisStoreBolt"
+    constructorArgs:
+      - ref: "poolConfig"
+      - ref: "storeMapper"
+    parallelism: 1
+
+# stream definitions
+# stream definitions define connections between spouts and bolts.
+streams:
+  - name: "fileReaderSpout --> splitSentenceBolt"
+    from: "fileReaderSpout"
+    to: "splitSentenceBolt"
+    grouping:
+      type: SHUFFLE
+
+  - name: "splitSentenceBolt --> normalizerBolt"
+    from: "splitSentenceBolt"
+    to: "normalizerBolt"
+    grouping:
+      type: SHUFFLE
+
+  - name: "normalizerBolt --> wordCountBolt"
+    from: "normalizerBolt"
+    to: "wordCountBolt"
+    grouping:
+      type: SHUFFLE
+
+  - name: "wordCountBolt --> redisStoreBolt"
+    from: "wordCountBolt"
+    to: "redisStoreBolt"
+    grouping:
+      type: SHUFFLE
