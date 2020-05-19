@@ -7,7 +7,7 @@
   <packaging>jar</packaging>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <storm.version>1.1.0</storm.version>
+    <storm.version>2.1.0</storm.version>
   </properties>
   <repositories>
     <repository>
